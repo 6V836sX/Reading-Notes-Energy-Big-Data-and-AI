@@ -1,0 +1,21 @@
+project:
+  type: default
+  output-dir: _output
+  render:
+    - chapters/ch02/smart_grid_ch02_section24.qmd
+lang: zh-CN
+toc: true
+toc-depth: 3
+number-sections: true
+format:
+  html:
+    theme: cosmo
+    code-fold: true
+    embed-resources: true
+    html-math-method: mathjax
+    mermaid-format: png
+  pdf:
+    pdf-engine: xelatex
+    documentclass: scrartcl
+    CJKmainfont: PingFang SC
+    mermaid-format: png

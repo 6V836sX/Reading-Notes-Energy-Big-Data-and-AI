@@ -1,0 +1,455 @@
+---
+title: "Smart Grid — 智能电网关键技术体系"
+subtitle: "《能源大数据与人工智能》阅读笔记 · Chapter 2 · §2.4 · pp.15–22"
+author: Summer
+date: 2026-10-16
+lang: zh-CN
+format: html
+toc: true
+toc-depth: 3
+number-sections: true
+---
+
+::: {.callout-note title="学习目标与来源边界"}
+理解 Smart Grid 的技术架构，建立从 Smart Meter Data 到 Grid Optimisation 的知识链条，并能用专业英语解释中国与新西兰电力系统的技术及市场差异。
+
+本文以 Summer 提供的完整阅读笔记为主来源；未取得书籍原页，书中图号、建设逻辑及投资回收期均按原笔记保留，未独立核对原书。官方资料核查日期：2026-10-16。编辑补充与公式修订会明确标注。
+:::
+
+| 标识 | 使用范围 |
+|---|---|
+| 技术概念 | 用于解释工程原理，不代表所有项目的实际部署 |
+| 已核实／特定制度 | 有官方来源支持，适用范围与统计日期见正文 |
+| 个人理解／教学示例 | 学习归纳、职业联系或简化模型，不作为监管规则 |
+| 待核实 | 尚无对应原页、具体市场规则或实证资料支持 |
+
+# Smart Grid — Core Concepts {#sec-core}
+
+## Traditional Grid vs Smart Grid
+
+传统电网（Traditional Power Grid）的主要任务是 **Generate → Transmit → Distribute → Consume**，即发电、输电、配电、用电。在这一简化模型中，电力主要从集中式电源流向用户，系统根据预测负荷安排发电。
+
+智能电网（Smart Grid）通过**双向通信、实时感知、自动控制与优化决策**提高可靠性、灵活性和经济效率，并不是简单安装智能电表。
+
+::: {.callout-note title="定义：Cyber-Physical System"}
+**Smart Grid = Physical Power System + ICT + Data Analytics + Optimisation & Control**。
+
+从 Data Science 角度看，它是闭环的 Cyber-Physical System（CPS，信息物理系统）：物理设备产生数据，信息系统分析数据并支持决策，控制作用于物理系统，新的测量结果形成反馈。
+:::
+
+| 维度 | Traditional Grid（简化概括） | Smart Grid |
+|---|---|---|
+| 电力流 | 集中发电、主要单向输送 | DER 与储能使局部网络可双向流动 |
+| 信息流 | 监测较集中，用户侧可见性有限 | 更广泛测量与双向通信 |
+| 决策 | 基于负荷预测安排发电 | 结合预测、网络约束、灵活性与优化 |
+| 用户 | 主要作为负荷 | 可参与分布式发电、储能和需求响应 |
+
+**编辑澄清：** 传统电网也具有监控、自动控制和调度能力；这里比较的是功能扩展，不是“传统电网没有信息系统”。
+
+## 功能架构与反馈闭环
+
+```{mermaid}
+%%| label: fig-architecture
+%%| fig-cap: "Smart Grid 功能分层与闭环；学习示意，非原书图 2-13 复刻"
+flowchart TB
+  D["Decision & Optimisation<br/>Forecasting · OPF · Demand Response · AI"]
+  I["Data & Communication<br/>AMI · SCADA · PMU · WAN · HAN"]
+  M["Monitoring & Control<br/>ADO · ATO · EMS · ADMS"]
+  P["Physical Power Infrastructure<br/>Generation · Transmission · Distribution<br/>DER · Storage · EV"]
+  P -->|测量与状态| M
+  M -->|数据| I
+  I -->|分析输入| D
+  D -->|控制决策| M
+  M -->|物理执行| P
+  I <-->|双向数据通信| M
+```
+
+@fig-architecture 是便于理解的功能分层。实际系统中数据、监控与控制相互交叉：例如 PMU 提供测量，AMI 跨越计量与通信，ADO/ATO 涵盖多种运行功能，不能将它们当作互斥的硬件层。
+
+本章最重要的逻辑是 **Measurement → Communication → Analytics → Decision → Control → Feedback**，即测量、传输、分析、决策、执行、反馈。
+
+# Four Core Technologies {#sec-technologies}
+
+原笔记将书中图 2-9 视为本节核心：AMI、ADO、ATO、AAM 分别对应用户侧数据、配电运行、输电运行和资产全生命周期。
+
+| 技术 | 全称 | 核心职责 | 典型应用 |
+|---|---|---|---|
+| AMI | Advanced Metering Infrastructure | 采集用户侧数据，支持双向信息交互 | Smart Meter、用电量、分时电价支持 |
+| ADO | Advanced Distribution Operations | 优化配电网运行 | 故障定位、配电自动化、DER 管理 |
+| ATO | Advanced Transmission Operations | 优化输电网运行 | PMU、WAMS、拥塞管理、系统稳定性 |
+| AAM | Advanced Asset Management | 优化资产全生命周期 | 设备健康预测、维护决策、资产投资 |
+
+: 四大技术的职责与应用 {#tbl-technologies}
+
+```{mermaid}
+%%| label: fig-technologies
+%%| fig-cap: "四大技术的协作关系；箭头表示数据或决策联系，不表示强制建设顺序"
+flowchart LR
+  AMI["AMI<br/>用户侧计量与通信"] -->|负荷数据| ADO["ADO<br/>配电运行与 DER"]
+  ADO <-->|边界状态与协调| ATO["ATO<br/>输电运行与安全"]
+  AMI -->|计量资产信息| AAM["AAM<br/>健康评估与生命周期决策"]
+  ADO -->|设备状态与运行记录| AAM
+  ATO -->|设备状态与运行记录| AAM
+  AAM -->|维护与投资决策| ADO
+  AAM -->|维护与投资决策| ATO
+```
+
+## AMI：让电网看见用户 {#sec-ami}
+
+AMI 是重要的数据基础设施，包括 Smart Meter（测量电量、功率等）、Communication Network（双向数据传输）与 MDMS（Meter Data Management System，数据存储、校验和处理）。HAN（Home Area Network）可连接家庭内可控设备；Customer Services 利用数据支持用电反馈、计费与需求响应。
+
+**编辑澄清：** HAN 与设备控制属于可能的扩展能力，不代表所有 AMI 部署均具备。**AMR（Automatic Meter Reading）**主要解决自动抄表，**AMI**则强调双向通信及更丰富的数据和潜在控制能力。
+
+住户用电数据可表示为：
+
+$$
+X \in \mathbb{R}^{N\times T}
+$$ {#eq-meter-matrix}
+
+其中 $N$ 是住户数量，$T$ 是半小时记录的时间步数。原笔记所述研究数据规模为 **50,000 户、30-minute interval**，这是用户提供的研究背景，未由本文独立验证。
+
+这些数据可用于：
+
+- Load Profiling（负荷画像）；
+- Customer Segmentation（用户聚类）；
+- Load Forecasting（负荷预测）；
+- Synthetic Data Generation（合成数据生成）；
+- Demand Response Potential Analysis（需求响应潜力分析）。
+
+::: {.callout-warning title="半小时能耗数据 ≠ 完整实时 AMI 数据"}
+仅有半小时能耗序列，通常不能直接获得电压、电流、故障状态或实时控制能力。需要区分电表本身的能力、实际采集字段以及研究者获得的数据。
+
+编辑补充：若 $X$ 的单位为 kWh，它表示区间电能；除以 $\Delta t=0.5\,\mathrm{h}$ 才得到该区间平均功率 kW，不能直接把能耗当作瞬时功率。
+:::
+
+## ADO：让配电网具备自愈能力
+
+ADO 关注从变电站到终端用户的 Distribution Network。Self-Healing（自愈）的主要过程是：
+
+1. Fault Detection：监测异常；
+2. Fault Location：定位故障；
+3. Fault Isolation：隔离故障；
+4. Service Restoration：恢复供电。
+
+工程中常使用 **FLISR（Fault Location, Isolation and Service Restoration）**。它需要相应测量、通信、开关设备与控制策略，不能仅凭计量数据完成自愈。
+
+ADO 还需要管理屋顶光伏、家用电池、电动汽车等 Distributed Energy Resources（DER）。这与 OPF、MPC 和 Optimisation 直接相关：不仅要预测负荷，还要在配网容量与运行约束下决定如何调节资源。
+
+## ATO：确保输电系统稳定
+
+ATO 关注 Transmission Network，尤其是跨区域的大规模电力输送。
+
+| 技术 | 全称 | 作用 |
+|---|---|---|
+| PMU | Phasor Measurement Unit | 同步测量电压、电流相量 |
+| WAMS | Wide Area Measurement System | 广域测量与态势感知 |
+| SCADA | Supervisory Control and Data Acquisition | 监控与数据采集 |
+| EMS | Energy Management System | 输电系统运行分析与控制支持 |
+
+核心问题是：发电、负荷和网络约束不断变化时，如何保持系统安全稳定。DC-OPF、AC-OPF、Contingency Analysis（事故分析）和 Optimal Dispatch（最优调度）都与这一领域相关。
+
+## AAM：从故障后维修转向预测性维护
+
+AAM 的本质是资产生命周期优化。传统的 **Equipment fails → Repair**，可扩展为 **Sensor Data → Failure Prediction → Maintenance Scheduling → Risk & Cost Optimisation**。
+
+例如，变压器的 Predictive Maintenance 可利用温度、负荷、油中溶解气体和历史故障记录预测风险。原笔记的简化目标为：
+
+$$
+\min \left(C_{\text{maintenance}}+\mathbb{E}[C_{\text{failure}}]+C_{\text{outage}}\right).
+$$ {#eq-asset-cost}
+
+@eq-asset-cost 体现 **Data Science + Optimisation + Asset Management** 的结合。它是教学表达，尚未定义维护决策变量、时间跨度、预算约束及风险模型。编辑补充：若故障损失已经包含停电损失，应避免重复计入 $C_{\text{outage}}$。
+
+# New Zealand vs China {#sec-comparison}
+
+## Technology Layer — 技术层比较
+
+下表保留原笔记的技术侧重点，是学习归纳，不是对每个项目的描述，也不表示两国只关注表中领域。
+
+| 维度 | New Zealand | China |
+|---|---|---|
+| 电网规模 | 相对较小，南北岛互联 | 超大规模、跨省跨区域 |
+| 发电结构 | 高比例可再生能源，水电重要 | 风光快速增长，煤电仍发挥重要作用 |
+| Transmission | HVDC Link、系统安全、输电约束 | UHV（特高压）、远距离大容量输电 |
+| Distribution | DER、EV、配网容量和韧性 | 配网数字化、源网荷储协同 |
+| Smart Meter | 用电数据、计费、零售服务与灵活性应用 | 大规模计量、负荷管理与需求侧数字化 |
+| Optimisation | 水电调度、价格、储能、负荷灵活性 | 跨区资源配置、新能源消纳、大规模调度 |
+
+: 技术侧重点比较（定性归纳） {#tbl-country-tech}
+
+**已核实／政策目标：** 中国 2025 年发布的《关于促进电网高质量发展的指导意见》提出，到 2030 年形成主干电网、配电网与智能微电网协同的新型电网平台，并增强跨区域资源配置能力。这是政策目标，不是已完成成果。[国家发展改革委、国家能源局，发改能源〔2025〕1710号](https://www.nea.gov.cn/20251231/1be7eddc38c74ec09f528c126c9bdb1c/c.html)
+
+::: {.callout-tip title="个人理解：比较的是优化问题与约束"}
+两国不是简单的技术先进与落后关系，而是优化问题的规模和约束不同。中国特别突出 *Scale, Coordination and Renewable Integration*；新西兰特别值得研究 *Hydro-Thermal Coordination, Market Signals and Grid Flexibility*。这些是技术侧重点概括，不是排他的国家标签。
+:::
+
+## Electricity Market Layer — 市场层比较
+
+| 维度 | New Zealand | China |
+|---|---|---|
+| 市场结构 | 全国性批发电力市场 | 全国统一市场体系建设中，省级及区域市场并存 |
+| Wholesale Pricing | Nodal Marginal Pricing（节点边际定价） | 地方现货规则不同；原笔记提及分区、节点等机制，具体地区须核对 |
+| 时间粒度 | 调度价格间隔可为一分钟至数分钟；半小时交易时段价格用于结算 | 依市场与产品规则；原笔记“常见 15 分钟”须结合具体省份核实 |
+| Market Participants | Generators、Retailers、Gentailers、Traders | 发电企业、售电公司、电力用户、储能、虚拟电厂等，准入依规则 |
+| 市场驱动 | 现货价格、套期保值、系统约束与监管 | 市场化交易与政策规划共同驱动 |
+| Demand Response | 价格响应、可调负荷、需求侧市场参与 | 需求响应、虚拟电厂、负荷聚合与市场化激励 |
+
+: 市场比较；全国概括不能替代具体市场规则 {#tbl-country-market}
+
+**已核实／NZ 制度：** 节点电价受供需、输电损耗与网络约束影响；系统运营者利用报价、需求预测及可用网络模型安排调度。[Electricity Authority — Spot market](https://www.ea.govt.nz/industry/wholesale/spot-market/)
+
+**精度修订：** 原笔记的“通常约 5 分钟重新调度”是简化表达。EA 说明实时调度价格间隔从一分钟至数分钟不等。半小时交易时段结束后，先按调度价格的持续时间加权形成临时价格，之后按规则确认最终结算价格；不能把半小时结算理解为控制或测量只发生一次。[EA — Real-time dispatch and pricing](https://www.ea.govt.nz/data-and-insights/datasets/wholesale/dispatch-and-pricing/)；[EA — Real-time pricing](https://www.ea.govt.nz/projects/all/rtp/)
+
+中国不能简单描述为“政府统一定价”。NEA 披露的 2025 年市场化交易统计见 @sec-evidence。新西兰已有长期运行的全国节点现货市场；中国继续推进跨省、跨区交易与不同层级市场的衔接。因此，不能把 NZ 的全国节点机制套用于中国所有省份，也不能把中国各省现货市场视为完全一致。
+
+::: {.callout-warning title="制度信息的使用边界"}
+中国各地的节点／分区价格、15 分钟粒度、储能及虚拟电厂准入条件，本文未逐省核实。开展实证分析前，应查目标地区、目标年份与目标产品的正式规则。技术比较和个人归纳不能当作法律或监管条款。
+:::
+
+## Market Clearing and Dispatch
+
+```{mermaid}
+%%| label: fig-market
+%%| fig-cap: "电力市场决策闭环；远期与套期保值价格来自相关交易，并非实时出清的直接输出"
+flowchart TB
+  S["Supply & Demand<br/>Hydro · Wind · Solar · Thermal · Consumers"]
+  C["Market Clearing & Dispatch<br/>Offers · Demand Forecast · Network Constraints"]
+  P["Price Signals<br/>Spot Price · Nodal Price"]
+  H["Forward / Hedge Markets<br/>预期与风险管理"]
+  D["Commercial & Operational Decisions<br/>Generation Scheduling · Storage · Demand Response"]
+  S --> C
+  C --> P
+  C -->|调度指令| D
+  P --> D
+  H -->|远期与套保价格| D
+  D -->|未来供需与报价反馈| S
+  P -->|市场信息| H
+```
+
+@fig-market 说明 Energy Analytics 的业务价值不仅是预测用电量，还包括交易、调度、投资和风险管理。高价时，灵活用户可能减少用电，电池可能放电；是否执行仍取决于合同、电池状态、网络约束与预期未来价格。
+
+## Implications for Energy Analytics {#sec-evidence}
+
+| 原笔记指标 | 核查与口径 | 含义及限制 |
+|---|---|---|
+| NZ：超过 96% | EA 2026-03-27 披露，电力连接点已安装半小时计量电表 | 连接点占比，不等于数据可获得率或实时控制覆盖率 |
+| China：6.64 万亿 kWh、64.0% | NEA 2026-01-30 披露，统计期为 2025 年；市场化交易电量及其占全社会用电量比重 | 不是现货交易单独占比，也不是智能电表普及率 |
+| NZ：水电约 60% | Transpower 的一般性系统描述支持“约 60%” | 未指定单一年份；不能作为 2026 年实测全年比例 |
+
+来源：[EA — Half-hourly volume data](https://www.ea.govt.nz/news/general-news/half-hourly-volume-data-must-be-submitted-for-reconciliation/)；[NEA — 2025 年全国电力市场交易成效](https://www.nea.gov.cn/20260130/8f698dfb4ebe4a5d93b5507b6a47d888/c.html)；[Transpower — Market indicators](https://www.transpower.co.nz/system-operator/notices-and-reporting/weekly-reporting/market-indicators)。以上保留为有日期或口径的事实，不自动视为最新数值。
+
+**个人理解：** 96% 与 64.0% 衡量不同维度，不能直接比较高低。NZ 的计量基础设施已高度普及，挑战之一是如何使数据产生系统和消费者价值；中国市场化与新能源整合规模较大，技术优化和制度设计需要共同演进。
+
+NZ 的 **Hydro Storage Risk（蓄水风险）**尤其重要：水电可用能量受蓄水与来水影响，南北岛 HVDC 连接有助于跨岛资源调配与供电安全。这使水文、价格、网络约束和储能预测成为相互关联的分析问题。[Transpower — Market indicators](https://www.transpower.co.nz/system-operator/notices-and-reporting/weekly-reporting/market-indicators)
+
+# Data Science Applications {#sec-analytics}
+
+## Descriptive → Predictive → Prescriptive
+
+| 阶段 | 核心问题 | 方法 |
+|---|---|---|
+| Descriptive Analytics（描述性分析） | What happened? | SQL、EDA、Clustering |
+| Predictive Analytics（预测性分析） | What will happen? | Time Series、ML、Deep Learning |
+| Prescriptive Analytics（处方性分析／决策优化） | What should we do? | OPF、LP、MILP、MPC、Stochastic Optimisation |
+
+```{mermaid}
+%%| label: fig-analytics
+%%| fig-cap: "从数据解释到行动，再通过效果反馈改进模型"
+flowchart TB
+  A["Descriptive<br/>AMI 数据 · EDA · 负荷画像"] --> B["Predictive<br/>负荷与价格预测 · 不确定性"]
+  B --> C["Prescriptive<br/>OPF · Battery Scheduling · Demand Response"]
+  C --> D["执行与评估<br/>成本 · 峰值 · 舒适度 · 网络约束"]
+  D -->|反馈| A
+```
+
+Prescriptive Analytics 是能源数据转化为商业价值的重要环节，但预测与优化结果还需经过可执行性检查和效果评估。
+
+## Smart Meter Data 与 Load Forecasting
+
+**教学场景：** 一个配电公司希望降低高峰负荷。首先使用 AMI 数据分析历史负荷，假设发现 **6–9 PM** 的峰值；这是假设示例，不是某个 NZ 配网的实测结论。
+
+其次预测明天的负荷：
+
+$$
+\hat{L}_{t+h}=f(X_t,W_{t+h},C_{t+h}).
+$$ {#eq-forecast}
+
+$X_t$ 表示预测时点可用的历史信息，$W$ 为天气，$C$ 为日历及其他外生变量，$h$ 是预测提前量。编辑补充：实际预测应使用当时可获得的天气预报，而非事后观测天气，以免数据泄漏。
+
+## Demand Response、OPF 与 Battery Optimisation
+
+原笔记用以下示意目标连接购电成本与峰值惩罚：
+
+$$
+\min \sum_t\left(p_tP_t^{\mathrm{grid}}\Delta t+\lambda P_t^{\mathrm{peak}}\right).
+$$ {#eq-original-objective}
+
+需同时满足 Battery SoC limits、Charging/discharging limits、Power balance、Customer comfort constraints 与 Network capacity constraints。这串联了 AMI、Load Forecasting、Demand Response、Battery Scheduling 和 Optimisation，但尚不是完整 OPF。
+
+::: {.callout-warning title="保留原式，并明确峰值费用的建模差别"}
+@eq-original-objective 未定义 $P_t^{\mathrm{peak}}$ 和 $\lambda$ 的单位。如果想惩罚整个时域的最大需量，逐时累加峰值可能不符合实际计费规则；若 $P_t^{\mathrm{peak}}$ 表示逐时超限量，则需另行定义。下面给出编辑补充的最大需量示例，不能直接替代具体电价合同。
+:::
+
+$$
+\begin{aligned}
+\min\quad &\sum_t p_t P_t^{\mathrm{grid}}\Delta t+\lambda P^{\mathrm{peak}}\\
+\text{s.t.}\quad &P^{\mathrm{peak}}\geq P_t^{\mathrm{grid}},\quad\forall t,\\
+&P_t^{\mathrm{grid}}+P_t^{\mathrm{dis}}+P_t^{\mathrm{PV}}
+=L_t+u_t+P_t^{\mathrm{ch}},\\
+&E_{t+1}=E_t+\eta_{\mathrm{ch}}P_t^{\mathrm{ch}}\Delta t
+-\frac{P_t^{\mathrm{dis}}\Delta t}{\eta_{\mathrm{dis}}},\\
+&E_{\min}\leq E_t\leq E_{\max},\\
+&0\leq P_t^{\mathrm{ch}}\leq\overline P^{\mathrm{ch}},\quad
+0\leq P_t^{\mathrm{dis}}\leq\overline P^{\mathrm{dis}},\\
+&0\leq P_t^{\mathrm{grid}}\leq\overline P^{\mathrm{grid}}.
+\end{aligned}
+$$ {#eq-battery}
+
+此补充示例假设只购电、不向电网反送电。$p_t$ 为 NZD/kWh，功率为 kW，$\Delta t$ 为小时，$E_t$ 为 kWh；$\lambda$ 为整个优化时域的 NZD/kW 峰值费用系数。$u_t$ 是可控负荷相对基线的调整，必须另外给出舒适度、时间窗口及必要的能量约束。SoC 可由 $E_t/E_{\mathrm{rated}}$ 表示。
+
+要形成可求解的工程模型，还需定义初始／终端储能状态、充放电互斥或合理处理同时充放电、电池退化成本、用户约束与不确定性。若目标是削减网络峰值而非降低用户电费，目标函数和利益主体也应相应调整。
+
+**OPF 的区别：** @eq-battery 只有汇总功率平衡和连接容量上限。完整 OPF 还需要网络拓扑、节点平衡、潮流关系及线路／电压等约束。DC-OPF 是近似模型；AC-OPF 涉及有功、无功与电压。MPC 则通过滚动预测、求解和执行更新决策。
+
+# NZ Energy Industry Context {#sec-industry}
+
+下表中的分析任务是基于机构业务的职业联系，不是职位要求或具体项目承诺。
+
+| 机构／领域 | 需要理解的业务 | Energy Analytics 与 Optimisation 的联系 |
+|---|---|---|
+| EECA — Energy Efficiency and Conservation Authority | 能源效率、需求侧灵活性、电气化 | AMI 数据分析、潜力评估、Impact Evaluation，支持投资与政策效果评估 |
+| Transpower | System Operation、Grid Security、Dispatch | ATO、SCADA、OPF，支持负荷预测、系统安全与调度分析 |
+| Electricity Authority（EA） | 市场规则、竞争、定价及监管 | Market Analytics、Nodal Pricing，理解规则如何塑造模型与激励 |
+| Electricity Distribution Businesses（EDBs） | 配网容量、可靠性、DER 接入与资产 | ADO、Forecasting、Asset Analytics，支持容量规划和维护 |
+| Generators / Retailers | 发电／零售组合、价格风险、交易 | Forecasting、Stochastic Optimisation，支持组合和风险决策 |
+
+EECA 的能源效率与灵活性工作见 [EECA strategy](https://www.eeca.govt.nz/about/who-we-are/our-strategy/) 和 [Demand flexibility research](https://www.eeca.govt.nz/insights/eeca-insights/understanding-the-full-potential-of-flexible-electricity-use-in-new-zealand/)。Transpower 的系统运营职责见 [System Operator](https://www.transpower.co.nz/system-operator)。EA 的职责和配网业务边界见 [What we do](https://www.ea.govt.nz/about-us/what-we-do/) 与 [Distribution](https://www.ea.govt.nz/industry/distribution/)。
+
+优先熟悉三个官方入口：
+
+- [Electricity Authority — EMI](https://www.emi.ea.govt.nz/)：批发价格、调度与市场数据；
+- [Transpower — Live system and market data](https://www.transpower.co.nz/system-operator/live-system-and-market-data)：负荷、发电结构与 HVDC 潮流；
+- [Electricity Authority — Meters](https://www.ea.govt.nz/your-power/meters/)：智能电表及用户侧应用背景。
+
+# Professional English Communication {#sec-english}
+
+以下英文脚本完整保留原笔记的实质内容；采用 New Zealand English 拼写。使用研究经历脚本时，应确保与本人真实经历一致。
+
+## 30-second Smart Grid explanation
+
+::: {.callout-note title="Version A — Smart Grid"}
+A smart grid is not simply a traditional electricity network equipped with smart meters. It integrates advanced metering, two-way communication, real-time monitoring and optimisation to improve reliability, efficiency and flexibility.
+
+From a data science perspective, the key value lies in transforming energy data into better operational and investment decisions.
+:::
+
+## China vs New Zealand
+
+::: {.callout-note title="Version B — Comparing China and New Zealand"}
+China and New Zealand face different challenges in smart grid development.
+
+China operates a much larger electricity system, where major priorities include long-distance transmission, renewable energy integration and coordination across regional markets.
+
+New Zealand has a smaller, highly renewable electricity system with an established wholesale spot market based on nodal pricing. Its challenges include hydro storage risk, network constraints and increasing demand-side flexibility.
+
+Despite these differences, both countries can benefit from better forecasting, data analytics and optimisation.
+:::
+
+## Connecting smart-meter research to EECA
+
+::: {.callout-note title="Version C — Connecting my research to EECA"}
+My postgraduate research focused on residential smart-meter data, including load profiling, customer segmentation and synthetic time-series generation.
+
+This experience helped me understand how granular electricity consumption data can support energy efficiency analysis and demand-side flexibility.
+
+I’m particularly interested in moving beyond descriptive analytics towards predictive modelling and optimisation, where data can support measurable energy savings, peak-demand reduction and better investment decisions.
+:::
+
+::: {.callout-tip title="职业表述的证据边界"}
+这里使用 *can support*，而不是 *I delivered measurable savings*。研究可以证明分析和建模能力，但没有部署与效果评估证据时，不能声称已实现实际节能。峰值降低、能耗降低与电费降低也需要分别评估。
+:::
+
+## Essential technical vocabulary
+
+| English | 中文／使用场景 |
+|---|---|
+| Load profiling / Customer segmentation | 负荷画像／用户聚类 |
+| Load forecasting / Synthetic time-series generation | 负荷预测／合成时间序列生成 |
+| Demand response / Demand-side flexibility | 需求响应／需求侧灵活性 |
+| Renewable integration / Curtailment | 可再生能源并网与消纳／限发 |
+| Congestion management / Network constraints | 拥塞管理／网络约束 |
+| Nodal marginal pricing / Market clearing | 节点边际定价／市场出清 |
+| Dispatch / Hedging | 调度／套期保值 |
+| Hydro storage risk / Hydro-thermal coordination | 蓄水风险／水火电协调 |
+| Predictive maintenance / Asset lifecycle | 预测性维护／资产全生命周期 |
+| Impact evaluation / Peak-demand reduction | 效果评估／峰值需求降低 |
+| Optimisation / Modelling | 优化／建模（NZ English 拼写） |
+
+# Critical Reading Notes {#sec-critical}
+
+## Historical vs current technologies
+
+原笔记提到书中图 2-13 列出的 ZigBee、WiMAX、HomePlug 是当时的代表性方案，不是 2026 年通信技术的完整清单。学习时应区分协议、网络范围、时延要求和部署条件。原书版本与原图尚待核对。
+
+## AMI vs Demand Response
+
+**Demand Response 不等于 Smart Metering。** 智能电表提供计量和信息基础，但负荷响应还需要价格或其他激励、用户参与、可调资源及相应执行机制；自动化响应还需要控制能力。参见 @sec-ami 与 @sec-analytics。
+
+## Technology deployment sequence
+
+原笔记将 **AMI → ADO → ATO → AAM** 归于书中建议的建设逻辑。它不是全球统一的强制实施顺序，四类系统可以并行发展；@fig-technologies 表达的是协作关系。对原书措辞的核对仍待取得原页后完成。
+
+## Limitations of simplified cost-benefit models
+
+原笔记中的书图 2-12 效益—成本 S 曲线是概念示意，不是经实证估计的成本收益模型。书中“AMI 投资通常 5–10 年回收”的说法保留为**原笔记转述、待核实**，不能直接推广到 NZ 当前项目。
+
+回收期依赖初始基础设施、通信成本、使用场景与监管安排。编辑补充：具体评估还需明确投资主体、折现率、运营维护成本、收益归属及不确定性。@eq-asset-cost 与 @eq-original-objective 同样属于简化表达，不能代替经过数据校准的项目模型。
+
+# Key Takeaways {#sec-takeaways}
+
+## Five essential concepts
+
+1. **Architecture:** Physical Grid + Communication + Analytics + Control。核心是将物理电网、信息系统与决策机制整合起来。
+2. **Four pillars:** AMI measures, ADO manages distribution, ATO manages transmission, AAM optimises assets。
+3. **China vs NZ:** 中国强调大规模整合与跨区协调；NZ 提供成熟节点市场背景，并面临蓄水与灵活性挑战。这是学习概括。
+4. **Data Science:** 智能电表数据支持负荷画像和预测；优化将预测转化为可执行决策。
+5. **Career value:** 从 *What happened?* 走向 *What will happen?*，最终回答 *What should we do?*。
+
+## Glossary — 重要缩写 {#sec-glossary}
+
+| 缩写 | English | 中文 |
+|---|---|---|
+| AMI | Advanced Metering Infrastructure | 高级计量基础设施 |
+| AMR | Automatic Meter Reading | 自动抄表 |
+| ADO | Advanced Distribution Operations | 高级配电运行 |
+| ATO | Advanced Transmission Operations | 高级输电运行 |
+| AAM | Advanced Asset Management | 高级资产管理 |
+| CPS | Cyber-Physical System | 信息物理系统 |
+| ICT | Information and Communication Technology | 信息与通信技术 |
+| MDMS | Meter Data Management System | 电表数据管理系统 |
+| HAN / WAN | Home Area Network / Wide Area Network | 家庭区域网／广域网 |
+| SCADA | Supervisory Control and Data Acquisition | 监控与数据采集 |
+| PMU / WAMS | Phasor Measurement Unit / Wide Area Measurement System | 相量测量单元／广域测量系统 |
+| EMS / ADMS | Energy Management System / Advanced Distribution Management System | 能量管理系统／高级配电管理系统 |
+| FLISR | Fault Location, Isolation and Service Restoration | 故障定位、隔离与供电恢复 |
+| DER | Distributed Energy Resources | 分布式能源资源 |
+| EV / PV | Electric Vehicle / Photovoltaic | 电动汽车／光伏 |
+| OPF | Optimal Power Flow | 最优潮流 |
+| AC / DC | Alternating Current / Direct Current | 交流／直流 |
+| MPC | Model Predictive Control | 模型预测控制 |
+| LP / MILP | Linear Programming / Mixed-Integer Linear Programming | 线性规划／混合整数线性规划 |
+| SoC | State of Charge | 荷电状态 |
+| HVDC / UHV | High-Voltage Direct Current / Ultra-High Voltage | 高压直流／特高压 |
+| DR | Demand Response | 需求响应 |
+| SQL / EDA | Structured Query Language / Exploratory Data Analysis | 结构化查询语言／探索性数据分析 |
+| AI / ML | Artificial Intelligence / Machine Learning | 人工智能／机器学习 |
+| EA / EECA | Electricity Authority / Energy Efficiency and Conservation Authority | 新西兰电力监管机构／能源效率与节约机构 |
+| EDB / EMI | Electricity Distribution Business / Electricity Market Information | 配电企业／电力市场信息 |
+| NEA | National Energy Administration | 中国国家能源局 |
+| Gentailer | Generator + Retailer | 发电与零售一体化企业（合成词） |
+
+## Connections to my Data Science career
+
+最有价值的交叉领域是 **Energy Analytics + Optimisation + Market/Operational Decision-Making**。这条主线既连接智能电表研究，也可延伸到 EECA 的能源效率分析、EDBs 的网络规划，以及发电与零售企业的预测和交易优化。
+
+长期复习时，将 @sec-core 的反馈闭环、@tbl-technologies 的职责分工、@tbl-country-market 的制度差异与 @sec-english 的专业表达联系起来。Smart Grid 的核心不是某一个 AI 模型或传感器，而是数据如何在真实物理约束与制度安排下支持更好的决策。
